@@ -25,3 +25,26 @@ if __name__ == '__main__':
         # add 1 to the number of coins mined and print it.  Otherwise,
         # print the message from the server.
         pass
+
+
+    def proof_of_work(self, last_proof):
+        proof = 0
+
+        while valid_proof(last_proof, proof) is False:
+            proof += 1
+
+        return proof
+
+    def valid_proof(last_proof, proof):
+        """
+        Validates the Proof:  Does hash(block_string, proof) contain 6
+        leading zeroes?
+        """
+        guess = f'{last_proof}{proof}'.encode()
+        guess_hash = hashlib.sha256(guess).hexdigest()
+        beg = guess_hash[0:6] #[:6] same thing
+
+        if beg == '000000':
+            return True
+        else:
+            return False
