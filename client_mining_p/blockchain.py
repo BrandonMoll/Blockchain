@@ -77,16 +77,16 @@ class Blockchain(object):
 
 
     @staticmethod
-    def valid_proof(last_proof, proof):
+    def valid_proof(last_block_string, proof):
         """
         Validates the Proof:  Does hash(block_string, proof) contain 6
         leading zeroes?
         """
-        guess = f'{last_proof}{proof}'.encode()
+        guess = f'{last_block_string}{proof}'.encode()
         guess_hash = hashlib.sha256(guess).hexdigest()
-        beg = guess_hash[0:6] #[:6] same thing
+        beg = guess_hash[0:4] #[:6] same thing
 
-        if beg == '000000':
+        if beg == '0000':
             return True
         else:
             return False
@@ -130,20 +130,37 @@ node_identifier = str(uuid4()).replace('-', '')
 blockchain = Blockchain()
 
 
-@app.route('/mine/<proof>', methods=['GET'])
-def mine(proof):
-    last_proof = blockchain.chain[-1]
+@app.route('/mine', methods=['POST'])
+def mine():
+    # last_block = json.dumps(blockchain.last_block, sort_keys=True).encode()
+    values = request.get_json()
+    proof = values['proof']
+   
 
-    if blockchain.valid_proof(last_proof, proof):
+    if blockchain.valid_proof(blockchain.last_block['previous_hash'], proof):
+
         blockchain.new_transaction(0, node_identifier, 1)
-        blockchain.new_block(proof, blockchain.hash(blockchain.last_block))
-        response = 'Success!'
+
+        # Forge the new Block by adding it to the chain
+        last_block = blockchain.hash(blockchain.last_block)
+        block = blockchain.new_block(proof, last_block)
+
+        # Send a response with the new block
+        response = {
+            'message':       "New Block Forged",
+            'index':         block['index'],
+            'transactions':  block['transactions'],
+            'proof':         block['proof'],
+            'previous_hash': block['previous_hash'],
+        }
+        return jsonify(response), 200
     else:
-        response = 'Fail: Proof invalid!'
+        response = {
+            'message': 'proof invalid or block has already been mined'
+        }
+        return jsonify(response), 200
 
-
-
-    return jsonify(response), 200
+    
 
 
 @app.route('/transactions/new', methods=['POST'])
@@ -173,11 +190,12 @@ def full_chain():
     return jsonify(response), 200
 
 
-@app.route('lastproof', methods=['GET'])
-def last_proof():
+@app.route('/last_block_string', methods=['GET'])
+def last_block_string():
     response = {
-        blockchain.chain[-1]
+        'last_block_string': blockchain.last_block
     }
+    
     return jsonify(response), 200
 # Run the program on port 5000
 if __name__ == '__main__':
